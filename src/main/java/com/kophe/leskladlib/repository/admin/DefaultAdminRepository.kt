@@ -115,7 +115,8 @@ class DefaultAdminRepository(
             val adminUsers = getEntries<FirestoreCommonEntry>(firestoreUsers)
             val duty = firestoreDuty?.let { getEntries<FirestoreDuty>(it) }
             val unit = firestoreUnits?.let { getEntries<FirestoreCommonEntry>(it) }
-            val dn = firestoreDeliveryNote?.let { getEntries<FirestoreDeliveryNote>(it) }
+            val deliveryNotes = firestoreDeliveryNote.let { getEntries<FirestoreDeliveryNote>(it)}
+//
             val backupObject = FirestoreBackupObject(
                 issuance = issuances,
                 locations = locations,
@@ -128,7 +129,7 @@ class DefaultAdminRepository(
                 duty = duty,
                 unit,
                 adminUsers = adminUsers,
-                deliveryNote = dn
+                deliveryNote = deliveryNotes
             )
             val root = File(filesDir, "export")
             if (!root.exists()) root.mkdirs()
@@ -201,6 +202,9 @@ class DefaultAdminRepository(
             batch.set(
                 firestoreAdminUsers.document(it.first), it.second
             )
+        }
+        backupObject.deliveryNote.forEach {
+            batch.set(firestoreDeliveryNote.document(it.first), it.second)
         }
         batch.commit().await()
         TaskSuccess<Any, LSError>()

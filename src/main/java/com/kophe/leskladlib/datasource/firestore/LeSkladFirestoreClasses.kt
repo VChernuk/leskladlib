@@ -61,9 +61,9 @@ internal data class FirestoreItem(
 }
 
 internal data class FirestoreDeliveryNote(
-    val id: String? = null,
     val dn_number: String? = null,
-    val date: java.sql.Date? = null,
+    val date: com.google.firebase.Timestamp? = null,
+    val department: String? = null,
     val responsible_person: String? = null
 )
 

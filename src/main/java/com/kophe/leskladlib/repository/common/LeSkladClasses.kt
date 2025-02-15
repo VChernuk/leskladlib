@@ -288,16 +288,16 @@ data class Location(val title: String, val id: String, val sublocations: List<Su
 
 @Keep
 @Parcelize
-data class DeliveryNote(val id: String? = null,
-                        val dn_number: String? = null,
+data class DeliveryNote(val dn_number: String? = null,
                         val date: java.sql.Date? = null,
+                        val department: String? = null,
                         val responsible_person: String? = null) :
     Parcelable {
 
     override fun equals(other: Any?) =
-        (other as? DeliveryNote)?.let { it.id == id && it.dn_number == dn_number } ?: super.equals(other)
+        (other as? DeliveryNote)?.let { it.date == date && it.dn_number == dn_number } ?: super.equals(other)
 
-    override fun hashCode() = id.hashCode()
+    override fun hashCode() = dn_number.hashCode()
 }
 
 @Keep

@@ -19,8 +19,10 @@ import com.kophe.leskladlib.datasource.firestore.FirestoreIssuance
 import com.kophe.leskladlib.datasource.firestore.FirestoreItem
 import com.kophe.leskladlib.datasource.firestore.FirestoreLocation
 import com.kophe.leskladlib.datasource.firestore.FirestoreSubcategory
+import com.kophe.leskladlib.datasource.firestore.FirestoreDeliveryNote
 import com.kophe.leskladlib.logging.LoggingUtil
 import com.kophe.leskladlib.repository.common.BaseRepository
+import com.kophe.leskladlib.repository.common.DeliveryNote
 import com.kophe.leskladlib.repository.common.LSError
 import com.kophe.leskladlib.repository.common.LSError.SimpleError
 import com.kophe.leskladlib.repository.common.OwnershipType
@@ -62,6 +64,8 @@ class DefaultAdminRepository(
     private val firestoreUnits by lazy {
         if (builder.unitsCollection.isEmpty()) null else db.collection(builder.unitsCollection)
     }
+    private val firestoreDeliveryNote by lazy { db.collection(builder.deliveryNoteCollection) }
+
 
     override suspend fun setAllOwnerTypesToUnknown(): TaskResult<Any, LSError> = try {
         (itemsRepository.allItems() as? TaskSuccess)?.result?.let {
@@ -111,6 +115,7 @@ class DefaultAdminRepository(
             val adminUsers = getEntries<FirestoreCommonEntry>(firestoreUsers)
             val duty = firestoreDuty?.let { getEntries<FirestoreDuty>(it) }
             val unit = firestoreUnits?.let { getEntries<FirestoreCommonEntry>(it) }
+            val dn = firestoreDeliveryNote?.let { getEntries<FirestoreDeliveryNote>(it) }
             val backupObject = FirestoreBackupObject(
                 issuance = issuances,
                 locations = locations,
@@ -122,7 +127,8 @@ class DefaultAdminRepository(
                 users = users,
                 duty = duty,
                 unit,
-                adminUsers = adminUsers
+                adminUsers = adminUsers,
+                deliveryNote = dn
             )
             val root = File(filesDir, "export")
             if (!root.exists()) root.mkdirs()

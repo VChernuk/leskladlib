@@ -134,5 +134,6 @@ internal data class FirestoreBackupObject(
     val users: List<Pair<String, FirestoreCommonEntry>>,
     val duty: List<Pair<String, FirestoreDuty>>?,
     val responsibleUnits: List<Pair<String, FirestoreCommonEntry>>?,
-    val adminUsers: List<Pair<String, FirestoreCommonEntry>>
+    val adminUsers: List<Pair<String, FirestoreCommonEntry>>,
+    val deliveryNote: List<Pair<String, FirestoreDeliveryNote>>
 )

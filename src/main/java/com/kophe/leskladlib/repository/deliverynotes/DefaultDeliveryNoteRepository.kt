@@ -1,4 +1,4 @@
-package com.kophe.leskladlib.repository.deliverynote
+package com.kophe.leskladlib.repository.deliverynotes
 
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.Source
@@ -7,7 +7,6 @@ import com.google.firebase.firestore.ktx.toObject
 import com.google.firebase.ktx.Firebase
 import com.kophe.leskladlib.connectivity.ConnectionStateMonitor
 import com.kophe.leskladlib.datasource.firestore.FirestoreCategory
-import com.kophe.leskladlib.datasource.firestore.FirestoreDeliveryNote
 import com.kophe.leskladlib.datasource.firestore.FirestoreCommonEntry
 import com.kophe.leskladlib.logging.LoggingUtil
 import com.kophe.leskladlib.repository.common.BaseRepository
@@ -20,7 +19,6 @@ import com.kophe.leskladlib.repository.common.TaskResult.TaskError
 import com.kophe.leskladlib.repository.common.TaskResult.TaskSuccess
 import com.kophe.leskladlib.repository.ownership.OwnershipRepository
 import kotlinx.coroutines.tasks.await
-import java.util.*
 
 class DefaultDeliveryNoteRepository(
     loggingUtil: LoggingUtil,

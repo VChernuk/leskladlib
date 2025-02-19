@@ -5,11 +5,23 @@ import com.kophe.leskladlib.repository.common.Item
 import com.kophe.leskladlib.validated
 import androidx.annotation.Keep
 import com.google.firebase.firestore.PropertyName
+import com.kophe.leskladlib.repository.common.CommonItem
+import com.kophe.leskladlib.repository.common.DeliveryNote
+import com.kophe.leskladlib.repository.common.Location
+import com.kophe.leskladlib.repository.locations.DefaultLocationsRepository
+import com.kophe.leskladlib.repository.locations.LocationsRepository
 import java.util.Date
 
 data class FirestoreCommonInfoItem(
     val title: String? = null, val firestore_id: String? = null
-)
+){
+    fun toDomainModel(): CommonItem {
+        return CommonItem(
+            title = this.title,
+            firestoreId = this.firestore_id
+        )
+    }
+}
 
 internal data class FirestoreItemImage(
     val path: String? = null, val date: String? = null
@@ -103,13 +115,24 @@ internal data class FirestoreIssuance(
 )
 
 internal data class FirestoreDeliveryNote(
-    val number: String? = null,
-    val date: Long? = null,
-    val to_location_id: String? = null,
+    val number: String,
+    val date: Long,
+    val to_location_id: String,
     val to_sublocation_id: String? = null,
-    val responsible_person: String? = null,
+    val responsible_person: String,
     val dn_items: List<FirestoreCommonInfoItem>? = emptyList()
-)
+){
+    private fun FirestoreDeliveryNote.toDomainModel(): DeliveryNote {
+        return DeliveryNote(
+            number = this.number,
+            date = this.date,
+            location = Location.EMPTY,
+            sublocation = null,
+            responsiblePerson = this.responsible_person,
+            items = this.dn_items!!.map { it.toDomainModel() } // Конвертируем `FirestoreCommonInfoItem` в `CommonItem`
+        )
+    }
+}
 //@Keep
 //data class FirestoreDeliveryNote(
 //    @get:PropertyName("number") @set:PropertyName("number")

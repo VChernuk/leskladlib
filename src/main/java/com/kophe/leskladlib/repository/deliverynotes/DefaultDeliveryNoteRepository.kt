@@ -45,6 +45,7 @@ import com.kophe.leskladlib.repository.common.TaskResult.TaskSuccess
 //import com.kophe.leskladlib.repository.userprofile.UserProfileRepository
 import com.kophe.leskladlib.timestampToFormattedDate24h
 import com.kophe.leskladlib.validated
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.Date
 
@@ -65,7 +66,7 @@ class DefaultDeliveryNoteRepository @Inject constructor(
 //    private val firestore = FirebaseFirestore.getInstance()
 //    private val collection = firestore.collection("delivery_notes")
 
-    override fun getDeliveryNotesFlow(): Flow<List<DeliveryNote>> = callbackFlow {
+    override  fun getDeliveryNotesFlow(): Flow<List<DeliveryNote>> = callbackFlow {
         val listener = deliveryNotesCollection
             .orderBy("date", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
@@ -73,14 +74,14 @@ class DefaultDeliveryNoteRepository @Inject constructor(
                     log("Firestore error: ${error.message}")
                     return@addSnapshotListener
                 }
+                launch { // Запускаем suspend-код в coroutineScope
+                    val deliveryNotes = snapshot?.documents?.mapNotNull { doc ->
+                        doc.toObject<FirestoreDeliveryNote>()?.toDomainModel()
+                    } ?: emptyList()
 
-                val deliveryNotes = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject<FirestoreDeliveryNote>()?.toDomainModel()
-                } ?: emptyList()
-
-                trySend(deliveryNotes)
+                    trySend(deliveryNotes)
+                }
             }
-
         awaitClose { listener.remove() }
     }
 

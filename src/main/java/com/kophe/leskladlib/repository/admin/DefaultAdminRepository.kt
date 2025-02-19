@@ -64,7 +64,7 @@ class DefaultAdminRepository(
     private val firestoreUnits by lazy {
         if (builder.unitsCollection.isEmpty()) null else db.collection(builder.unitsCollection)
     }
-    private val firestoreDeliveryNote by lazy { db.collection(builder.deliveryNoteCollection) }
+    private val firestoreDeliveryNote by lazy { db.collection(builder.deliveryNotesCollection) }
 
 
     override suspend fun setAllOwnerTypesToUnknown(): TaskResult<Any, LSError> = try {

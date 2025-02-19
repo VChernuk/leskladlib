@@ -1,90 +1,152 @@
 package com.kophe.leskladlib.repository.deliverynotes
 
-import com.google.firebase.firestore.FieldPath
-import com.google.firebase.firestore.Source
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
+//import com.google.firebase.firestore.toObject
+import com.kophe.leskladlib.datasource.firestore.FirestoreDeliveryNote
+import com.kophe.leskladlib.repository.common.DeliveryNote
+import com.kophe.leskladlib.repository.locations.LocationsRepository
+import com.kophe.leskladlib.repository.items.ItemsRepository
+import com.kophe.leskladlib.repository.userprofile.UserProfileRepository
+//import com.kophe.leskladlib.util.ConnectionStateMonitor
+import com.kophe.leskladlib.logging.LoggingUtil
+import com.kophe.leskladlib.repository.common.RepositoryBuilder
+import com.kophe.leskladlib.repository.units.UnitsRepository
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
+import javax.inject.Singleton
+
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldPath.documentId
+import com.google.firebase.firestore.WriteBatch
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.firestore.ktx.toObject
 import com.google.firebase.ktx.Firebase
-import com.kophe.leskladlib.connectivity.ConnectionStateMonitor
-import com.kophe.leskladlib.datasource.firestore.FirestoreCategory
-import com.kophe.leskladlib.datasource.firestore.FirestoreCommonEntry
-import com.kophe.leskladlib.logging.LoggingUtil
-import com.kophe.leskladlib.loggingTag
+import com.kophe.leskladlib.datasource.firestore.FirestoreCommonInfoItem
+import com.kophe.leskladlib.datasource.firestore.FirestoreIssuance
+//import com.kophe.leskladlib.logging.LoggingUtil
 import com.kophe.leskladlib.repository.common.BaseRepository
-import com.kophe.leskladlib.repository.common.DeliveryNote
+import com.kophe.leskladlib.repository.common.CommonItem
+import com.kophe.leskladlib.repository.common.Issuance
+import com.kophe.leskladlib.repository.common.Item
 import com.kophe.leskladlib.repository.common.LSError
 import com.kophe.leskladlib.repository.common.LSError.SimpleError
-import com.kophe.leskladlib.repository.common.OwnershipType
-import com.kophe.leskladlib.repository.common.RepositoryBuilder
+import com.kophe.leskladlib.repository.common.Location
+//import com.kophe.leskladlib.repository.common.RepositoryBuilder
 import com.kophe.leskladlib.repository.common.TaskResult
 import com.kophe.leskladlib.repository.common.TaskResult.TaskError
 import com.kophe.leskladlib.repository.common.TaskResult.TaskSuccess
-import com.kophe.leskladlib.repository.ownership.OwnershipRepository
+//import com.kophe.leskladlib.repository.items.ItemsRepository
+//import com.kophe.leskladlib.repository.locations.LocationsRepository
+//import com.kophe.leskladlib.repository.units.UnitsRepository
+//import com.kophe.leskladlib.repository.userprofile.UserProfileRepository
+import com.kophe.leskladlib.timestampToFormattedDate24h
+import com.kophe.leskladlib.validated
 import kotlinx.coroutines.tasks.await
-import javax.inject.Inject
-
+import java.util.Date
 
 class DefaultDeliveryNoteRepository @Inject constructor(
-    private val loggingUtil: LoggingUtil,
-    private val connectionStateMonitor: ConnectionStateMonitor
-) : DeliveryNotesRepository {
+    loggingUtil: LoggingUtil,
+    builder: RepositoryBuilder,
+    private val locationsRepository: LocationsRepository,
+    internal val itemsRepository: ItemsRepository,
+    private val unitsRepository: UnitsRepository?,
+    private val userProfileRepository: UserProfileRepository
+) : DeliveryNotesRepository, BaseRepository(loggingUtil)  {
+
+    private val db by lazy { Firebase.firestore }
+    private val deliveryNotesCollection by lazy { db.collection(builder.deliveryNotesCollection) }
+    internal val itemsCollection by lazy { db.collection(builder.itemsCollection) }
+    private val localCachedIssuance = mutableSetOf<Issuance>()
+
+//    private val firestore = FirebaseFirestore.getInstance()
+//    private val collection = firestore.collection("delivery_notes")
+
+    override fun getDeliveryNotesFlow(): Flow<List<DeliveryNote>> = callbackFlow {
+        val listener = deliveryNotesCollection
+            .orderBy("date", Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    log("Firestore error: ${error.message}")
+                    return@addSnapshotListener
+                }
+
+                val deliveryNotes = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject<FirestoreDeliveryNote>()?.toDomainModel()
+                } ?: emptyList()
+
+                trySend(deliveryNotes)
+            }
+
+        awaitClose { listener.remove() }
+    }
 
     override suspend fun getDeliveryNotes(): List<DeliveryNote> {
-        loggingUtil.log("${loggingTag()} Fetching delivery notes...")
-        return emptyList() // Заглушка, позже подставим логику
+        return try {
+            val snapshot = deliveryNotesCollection.get().await()
+            snapshot.documents.mapNotNull { doc ->
+                doc.toObject<FirestoreDeliveryNote>()?.toDomainModel()
+            }
+        } catch (e: Exception) {
+            log("Error getting delivery notes: ${e.message}")
+            emptyList()
+        }
     }
+
+    override suspend fun addDeliveryNote(deliveryNote: DeliveryNote) {
+        try {
+            deliveryNotesCollection.document(deliveryNote.number).set(deliveryNote.toFirestoreModel()).await()
+        } catch (e: Exception) {
+            log("Error adding delivery note: ${e.message}")
+        }
+    }
+
+    override suspend fun updateDeliveryNote(deliveryNote: DeliveryNote) {
+        try {
+            deliveryNotesCollection.document(deliveryNote.number).set(deliveryNote.toFirestoreModel()).await()
+        } catch (e: Exception) {
+            log("Error updating delivery note: ${e.message}")
+        }
+    }
+
+    override suspend fun deleteDeliveryNote(deliveryNoteNumber: String) {
+        try {
+            deliveryNotesCollection.document(deliveryNoteNumber).delete().await()
+        } catch (e: Exception) {
+            log("Error deleting delivery note: ${e.message}")
+        }
+    }
+    private fun deliveryNoteItems(item: FirestoreDeliveryNote) = item.dn_items?.mapNotNull {
+        CommonItem(
+            title = it.title ?: return@mapNotNull null,
+            firestoreId = it.firestore_id ?: return@mapNotNull null
+        )
+    } ?: emptyList()
+
+    private suspend fun FirestoreDeliveryNote.toDomainModel(): DeliveryNote {
+
+        return DeliveryNote(
+            number = this.number ?: "",
+            date = this.date ?: 0,
+            location = locationsRepository.getLocation(this.to_location_id  ?: "") ?: Location.EMPTY,
+            sublocation = this.to_sublocation_id?.let { locationsRepository.getSublocation(it) },
+            responsiblePerson = this.responsible_person?: "",
+            items = deliveryNoteItems(this)
+        )
+    }
+
+    private fun DeliveryNote.toFirestoreModel(): FirestoreDeliveryNote {
+        return FirestoreDeliveryNote(
+            number = this.number,
+            date = this.date,
+            to_location_id = this.location.id,
+            to_sublocation_id = this.sublocation?.id ?: "",
+            responsible_person = this.responsiblePerson,
+            dn_items = this.items.map { it.toFirestoreModel() }
+        )
+    }
+
 }
-//class DefaultDeliveryNoteRepository(
-//    loggingUtil: LoggingUtil,
-//    builder: RepositoryBuilder,
-//    private val connection: ConnectionStateMonitor
-//) : OwnershipRepository, BaseRepository(loggingUtil) {
-//
-//    private val db by lazy { Firebase.firestore }
-//    private val firestoreOwnershipTypes by lazy { db.collection(builder.ownershipTypesCollection) }
-//    private val localCachedOwnershipTypes = mutableSetOf<OwnershipType>()
-//
-//    override suspend fun precacheValues() {
-//        if (localCachedOwnershipTypes.isEmpty()) allOwnershipTypes()
-//    }
-//
-//    override suspend fun allOwnershipTypes(forceReload: Boolean): TaskResult<List<OwnershipType>, LSError> =
-//        try {
-//            if (!forceReload && localCachedOwnershipTypes.isNotEmpty()) TaskSuccess(
-//                localCachedOwnershipTypes.toList()
-//            )
-//            else TaskSuccess(firestoreOwnershipTypes.get(if (connection.available() != true) Source.CACHE else Source.DEFAULT)
-//                .await().mapNotNull { result ->
-//                    log("${result.id} => ${result.data}")
-//                    val item = result.toObject<FirestoreCategory>()
-//                    log("ownership type: $item")
-//                    val title = item.title ?: return@mapNotNull null
-//                    val type = OwnershipType(title, result.id)
-//                    localCachedOwnershipTypes.add(type)
-//                    type
-//                })
-//        } catch (e: Exception) {
-//            log("allOwnershipTypes(...) failed due to: ${e.message}")
-//            TaskError(SimpleError("${e.message}"))
-//        }
-//
-//    override suspend fun getOwnershipType(id: String): OwnershipType? =
-//        localCachedOwnershipTypes.find { it.id == id } ?: firestoreOwnershipTypes.whereEqualTo(
-//            FieldPath.documentId(), id
-//        ).limit(1).get(if (connection.available() != true) Source.CACHE else Source.DEFAULT).await()
-//            .firstOrNull()?.let { result ->
-//                val item = result.toObject<FirestoreCommonEntry>()
-//                val title = item.title ?: return@let null
-//                val type = OwnershipType(title, id = result.id)
-//                localCachedOwnershipTypes.add(type)
-//                type
-//            }
-//
-//}
-//
-//
-////DeliveryNote(
-////val dn_number: String? = null,
-////val date: com.google.firebase.Timestamp? = null,
-////val department: String? = null,
-////val responsible_person: String? = null

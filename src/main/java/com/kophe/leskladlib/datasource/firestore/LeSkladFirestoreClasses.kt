@@ -3,9 +3,11 @@ package com.kophe.leskladlib.datasource.firestore
 import com.google.firebase.Timestamp
 import com.kophe.leskladlib.repository.common.Item
 import com.kophe.leskladlib.validated
+import androidx.annotation.Keep
+import com.google.firebase.firestore.PropertyName
 import java.util.Date
 
-internal data class FirestoreCommonInfoItem(
+data class FirestoreCommonInfoItem(
     val title: String? = null, val firestore_id: String? = null
 )
 
@@ -60,13 +62,6 @@ internal data class FirestoreItem(
         })
 }
 
-internal data class FirestoreDeliveryNote(
-    val dn_number: String? = null,
-    val date: com.google.firebase.Timestamp? = null,
-    val department: String? = null,
-    val responsible_person: String? = null
-)
-
 internal data class FirestoreSetOptions(
     val parent_set_id: String? = null, val subItemIds: List<String>? = null
 )
@@ -106,6 +101,35 @@ internal data class FirestoreIssuance(
     val receiver_call_sign: String? = null,
     val user_email: String? = null
 )
+
+internal data class FirestoreDeliveryNote(
+    val number: String? = null,
+    val date: Long? = null,
+    val to_location_id: String? = null,
+    val to_sublocation_id: String? = null,
+    val responsible_person: String? = null,
+    val dn_items: List<FirestoreCommonInfoItem>? = emptyList()
+)
+//@Keep
+//data class FirestoreDeliveryNote(
+//    @get:PropertyName("number") @set:PropertyName("number")
+//    var number: String = "",
+//
+//    @get:PropertyName("date") @set:PropertyName("date")
+//    var date: Long = System.currentTimeMillis(),
+//
+//    @get:PropertyName("to_location_id") @set:PropertyName("to_location_id")
+//    var toLocationId: String = "",
+//
+//    @get:PropertyName("to_sublocation_id") @set:PropertyName("to_sublocation_id")
+//    var toSublocationId: String = "",
+//
+//    @get:PropertyName("responsible_person") @set:PropertyName("responsible_person")
+//    var responsiblePerson: String = "",
+//
+//    @get:PropertyName("dn_items") @set:PropertyName("dn_items")
+//    var dnItems: List<FirestoreCommonInfoItem> = emptyList()
+//)
 
 internal data class FirestoreDuty(
     val user: String? = null,

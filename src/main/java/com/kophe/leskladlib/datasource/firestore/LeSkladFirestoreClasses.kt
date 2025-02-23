@@ -3,13 +3,9 @@ package com.kophe.leskladlib.datasource.firestore
 import com.google.firebase.Timestamp
 import com.kophe.leskladlib.repository.common.Item
 import com.kophe.leskladlib.validated
-import androidx.annotation.Keep
-import com.google.firebase.firestore.PropertyName
 import com.kophe.leskladlib.repository.common.CommonItem
 import com.kophe.leskladlib.repository.common.DeliveryNote
 import com.kophe.leskladlib.repository.common.Location
-import com.kophe.leskladlib.repository.locations.DefaultLocationsRepository
-import com.kophe.leskladlib.repository.locations.LocationsRepository
 import java.util.Date
 
 data class FirestoreCommonInfoItem(
@@ -116,16 +112,18 @@ internal data class FirestoreIssuance(
 
 internal data class FirestoreDeliveryNote(
     val number: String,
-    val date: Long,
+    val date: Timestamp = Timestamp.now(), // Изменяем Long -> Timestamp,
     val to_location_id: String,
     val to_sublocation_id: String? = null,
     val responsible_person: String,
     val dn_items: List<FirestoreCommonInfoItem>? = emptyList()
 ){
+    constructor() : this("", Timestamp.now(), "", "", "", emptyList()) // Обязательный пустой конструктор
+
     private fun FirestoreDeliveryNote.toDomainModel(): DeliveryNote {
         return DeliveryNote(
             number = this.number,
-            date = this.date,
+            date = this.date.toDate(),
             location = Location.EMPTY,
             sublocation = null,
             responsiblePerson = this.responsible_person,

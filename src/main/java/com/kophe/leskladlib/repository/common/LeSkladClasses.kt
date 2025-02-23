@@ -4,11 +4,11 @@ import android.os.Parcelable
 import androidx.annotation.Keep
 import com.kophe.leskladlib.TIME_FORMAT
 import com.kophe.leskladlib.datasource.firestore.FirestoreCommonInfoItem
-import com.kophe.leskladlib.datasource.firestore.FirestoreDeliveryNote
 import com.kophe.leskladlib.datasource.firestore.FirestoreItem
 import com.kophe.leskladlib.timestampToFormattedDate24h
 import kotlinx.parcelize.Parcelize
 import java.text.SimpleDateFormat
+import java.util.Date
 
 //TODO: deal with errors
 sealed class LSError(val message: String? = null) {
@@ -80,7 +80,7 @@ data class Issuance(
 @Parcelize
 data class DeliveryNote(
     val number: String,
-    val date: Long,
+    val date: Date,
     val location: Location,
     val sublocation: Sublocation?,
     val responsiblePerson: String,

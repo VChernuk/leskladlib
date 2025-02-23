@@ -1,6 +1,5 @@
 package com.kophe.leskladlib.repository.deliverynotes
 
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 //import com.google.firebase.firestore.toObject
 import com.kophe.leskladlib.datasource.firestore.FirestoreDeliveryNote
@@ -17,36 +16,22 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
-import javax.inject.Singleton
 
 import com.google.firebase.Timestamp
-import com.google.firebase.firestore.FieldPath.documentId
-import com.google.firebase.firestore.WriteBatch
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.firestore.ktx.toObject
 import com.google.firebase.ktx.Firebase
-import com.kophe.leskladlib.datasource.firestore.FirestoreCommonInfoItem
-import com.kophe.leskladlib.datasource.firestore.FirestoreIssuance
 //import com.kophe.leskladlib.logging.LoggingUtil
 import com.kophe.leskladlib.repository.common.BaseRepository
 import com.kophe.leskladlib.repository.common.CommonItem
 import com.kophe.leskladlib.repository.common.Issuance
-import com.kophe.leskladlib.repository.common.Item
-import com.kophe.leskladlib.repository.common.LSError
-import com.kophe.leskladlib.repository.common.LSError.SimpleError
 import com.kophe.leskladlib.repository.common.Location
 //import com.kophe.leskladlib.repository.common.RepositoryBuilder
-import com.kophe.leskladlib.repository.common.TaskResult
-import com.kophe.leskladlib.repository.common.TaskResult.TaskError
-import com.kophe.leskladlib.repository.common.TaskResult.TaskSuccess
 //import com.kophe.leskladlib.repository.items.ItemsRepository
 //import com.kophe.leskladlib.repository.locations.LocationsRepository
 //import com.kophe.leskladlib.repository.units.UnitsRepository
 //import com.kophe.leskladlib.repository.userprofile.UserProfileRepository
-import com.kophe.leskladlib.timestampToFormattedDate24h
-import com.kophe.leskladlib.validated
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import java.util.Date
 
 class DefaultDeliveryNoteRepository @Inject constructor(
@@ -131,7 +116,7 @@ class DefaultDeliveryNoteRepository @Inject constructor(
 
         return DeliveryNote(
             number = this.number ?: "",
-            date = this.date ?: 0,
+            date = this.date.toDate(),
             location = locationsRepository.getLocation(this.to_location_id  ?: "") ?: Location.EMPTY,
             sublocation = this.to_sublocation_id?.let { locationsRepository.getSublocation(it) },
             responsiblePerson = this.responsible_person?: "",
@@ -142,7 +127,7 @@ class DefaultDeliveryNoteRepository @Inject constructor(
     private fun DeliveryNote.toFirestoreModel(): FirestoreDeliveryNote {
         return FirestoreDeliveryNote(
             number = this.number,
-            date = this.date,
+            date = Timestamp(this.date),
             to_location_id = this.location.id,
             to_sublocation_id = this.sublocation?.id ?: "",
             responsible_person = this.responsiblePerson,

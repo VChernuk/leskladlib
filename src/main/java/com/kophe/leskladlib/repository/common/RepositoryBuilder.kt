@@ -11,6 +11,5 @@ data class RepositoryBuilder(
     val dutyCollection: String,
     val usersCollection: String,
     val adminsCollection: String,
-    val unitsCollection: String,
-    val deliveryNotesCollection: String
+    val unitsCollection: String
 )

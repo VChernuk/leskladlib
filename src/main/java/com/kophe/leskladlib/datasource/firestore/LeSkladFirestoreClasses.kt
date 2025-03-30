@@ -3,21 +3,11 @@ package com.kophe.leskladlib.datasource.firestore
 import com.google.firebase.Timestamp
 import com.kophe.leskladlib.repository.common.Item
 import com.kophe.leskladlib.validated
-import com.kophe.leskladlib.repository.common.CommonItem
-import com.kophe.leskladlib.repository.common.DeliveryNote
-import com.kophe.leskladlib.repository.common.Location
 import java.util.Date
 
-data class FirestoreCommonInfoItem(
+internal data class FirestoreCommonInfoItem(
     val title: String? = null, val firestore_id: String? = null
-){
-    fun toDomainModel(): CommonItem {
-        return CommonItem(
-            title = this.title,
-            firestoreId = this.firestore_id
-        )
-    }
-}
+)
 
 internal data class FirestoreItemImage(
     val path: String? = null, val date: String? = null
@@ -41,7 +31,6 @@ internal data class FirestoreItem(
     val serial_number: String? = null,
     val quantity: FirestoreQuantity? = null,
     val set_options: FirestoreSetOptions? = null
-    , val delivery_note_id: String? = null
 ) {
     constructor(item: Item, now: Date) : this(barcode = item.barcode?.validated(),
         title = item.title?.validated(),
@@ -110,48 +99,6 @@ internal data class FirestoreIssuance(
     val user_email: String? = null
 )
 
-internal data class FirestoreDeliveryNote(
-    val number: String,
-    val date: Timestamp = Timestamp.now(), // Изменяем Long -> Timestamp,
-    val to_location_id: String,
-    val to_sublocation_id: String? = null,
-    val responsible_person: String,
-    val dn_items: List<FirestoreCommonInfoItem>? = emptyList()
-){
-    constructor() : this("", Timestamp.now(), "", "", "", emptyList()) // Обязательный пустой конструктор
-
-    private fun FirestoreDeliveryNote.toDomainModel(): DeliveryNote {
-        return DeliveryNote(
-            number = this.number,
-            date = this.date.toDate(),
-            location = Location.EMPTY,
-            sublocation = null,
-            responsiblePerson = this.responsible_person,
-            items = this.dn_items!!.map { it.toDomainModel() } // Конвертируем `FirestoreCommonInfoItem` в `CommonItem`
-        )
-    }
-}
-//@Keep
-//data class FirestoreDeliveryNote(
-//    @get:PropertyName("number") @set:PropertyName("number")
-//    var number: String = "",
-//
-//    @get:PropertyName("date") @set:PropertyName("date")
-//    var date: Long = System.currentTimeMillis(),
-//
-//    @get:PropertyName("to_location_id") @set:PropertyName("to_location_id")
-//    var toLocationId: String = "",
-//
-//    @get:PropertyName("to_sublocation_id") @set:PropertyName("to_sublocation_id")
-//    var toSublocationId: String = "",
-//
-//    @get:PropertyName("responsible_person") @set:PropertyName("responsible_person")
-//    var responsiblePerson: String = "",
-//
-//    @get:PropertyName("dn_items") @set:PropertyName("dn_items")
-//    var dnItems: List<FirestoreCommonInfoItem> = emptyList()
-//)
-
 internal data class FirestoreDuty(
     val user: String? = null,
     val sublocation_name: String? = null,
@@ -179,6 +126,5 @@ internal data class FirestoreBackupObject(
     val users: List<Pair<String, FirestoreCommonEntry>>,
     val duty: List<Pair<String, FirestoreDuty>>?,
     val responsibleUnits: List<Pair<String, FirestoreCommonEntry>>?,
-    val adminUsers: List<Pair<String, FirestoreCommonEntry>>,
-    val deliveryNote: List<Pair<String, FirestoreDeliveryNote>>
+    val adminUsers: List<Pair<String, FirestoreCommonEntry>>
 )

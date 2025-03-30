@@ -8,7 +8,6 @@ import com.kophe.leskladlib.datasource.firestore.FirestoreItem
 import com.kophe.leskladlib.timestampToFormattedDate24h
 import kotlinx.parcelize.Parcelize
 import java.text.SimpleDateFormat
-import java.util.Date
 
 //TODO: deal with errors
 sealed class LSError(val message: String? = null) {
@@ -78,71 +77,6 @@ data class Issuance(
 
 @Keep
 @Parcelize
-data class DeliveryNote(
-    val number: String,
-    val date: Date,
-    val location: Location,
-    val sublocation: Sublocation?,
-    val responsiblePerson: String,
-    val items: List<CommonItem>
-) : Parcelable
-//data class DeliveryNote(val dn_number: String? = null,
-//                        val date: java.sql.Date? = null,
-//                        val department: String? = null,
-//                        val responsible_person: String? = null) :
-//    Parcelable {
-//
-//    override fun equals(other: Any?) =
-//        (other as? DeliveryNote)?.let { it.date == date && it.dn_number == dn_number } ?: super.equals(other)
-//
-//    override fun hashCode() = dn_number.hashCode()
-//}
-
-///**
-// * Внутренний дата-класс для работы с накладными внутри приложения.
-// * Используется в ViewModel, Repository и UI.
-// */
-//data class DeliveryNote(
-//    val number: String,
-//    val date: Long,
-//    val location: Location,
-//    val sublocation: Sublocation?,
-//    val responsiblePerson: String,
-//    val items: List<CommonInfoItem>
-//) : Parcelable {
-//    /**
-//     * Конвертирует внутренний объект DeliveryNote в Firestore-модель FirestoreDeliveryNote.
-//     */
-//    fun toFirestoreModel(): FirestoreDeliveryNote {
-//        return FirestoreDeliveryNote(
-//            number = number,
-//            date = date,
-//            toLocationId = location.id,
-//            toSublocationId = sublocation?.id ?: "",
-//            responsiblePerson = responsiblePerson,
-//            dnItems = items.map { it.toFirestoreModel() }
-//        )
-//    }
-//
-//    companion object {
-//        /**
-//         * Создаёт объект DeliveryNote из Firestore-модели FirestoreDeliveryNote.
-//         */
-//        fun fromFirestoreModel(firestoreNote: FirestoreDeliveryNote, location: Location, sublocation: Sublocation?): DeliveryNote {
-//            return DeliveryNote(
-//                number = firestoreNote.number ?: "",
-//                date = firestoreNote.date ?: System.currentTimeMillis(),
-//                location = location,
-//                sublocation = sublocation,
-//                responsiblePerson = firestoreNote.responsiblePerson ?: "",
-//                items = firestoreNote.dnItems?.map { CommonInfoItem.fromFirestoreModel(it) } ?: emptyList()
-//            )
-//        }
-//    }
-//}
-
-@Keep
-@Parcelize
 data class CommonItem(val title: String?, val firestoreId: String?) : Parcelable {
 
     internal constructor(firestoreCommonInfoItem: FirestoreCommonInfoItem) : this(
@@ -155,12 +89,6 @@ data class CommonItem(val title: String?, val firestoreId: String?) : Parcelable
 
     override fun hashCode() = firestoreId.hashCode()
 
-    fun toFirestoreModel(): FirestoreCommonInfoItem {
-        return FirestoreCommonInfoItem(
-            title = this.title,
-            firestore_id = this.firestoreId
-        )
-    }
 }
 
 @Keep
@@ -206,8 +134,7 @@ data class Item(
     var responsibleUnit: ResponsibleUnit?,
     var sn: String?,
     var quantity: ItemQuantity?,
-    var setOptions: ItemSetOptions?,
-    var deliveryNote_id: DeliveryNote?
+    var setOptions: ItemSetOptions?
 ) : Parcelable {
 
     constructor() : this(
@@ -226,7 +153,6 @@ data class Item(
         sn = null,
         quantity = null,
         setOptions = null
-        , deliveryNote_id = null
     )
 
     constructor(commonItem: CommonItem) : this(
@@ -245,7 +171,6 @@ data class Item(
         sn = null,
         quantity = null,
         setOptions = null
-        , deliveryNote_id = null
     )
 
     internal constructor(
@@ -286,7 +211,6 @@ data class Item(
         sn = firestoreItem.serial_number,
         quantity = quantity,
         setOptions = setOptions
-        , deliveryNote_id = null
     )
 
     override fun equals(other: Any?) =
@@ -350,15 +274,13 @@ data class Subcategory(val title: String, val id: String, val weight: Int) : Par
 @Parcelize
 data class Location(val title: String, val id: String, val sublocations: List<Sublocation>) :
     Parcelable {
-    companion object {
-        val EMPTY = Location(id = "", title = "Unknown Location", sublocations = emptyList())
-    }
+
     override fun equals(other: Any?) =
         (other as? Location)?.let { it.id == id && it.title == title } ?: super.equals(other)
 
     override fun hashCode() = id.hashCode()
-}
 
+}
 
 @Keep
 @Parcelize

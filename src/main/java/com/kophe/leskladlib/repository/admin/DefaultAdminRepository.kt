@@ -16,6 +16,7 @@ import com.kophe.leskladlib.datasource.firestore.FirestoreCategory
 import com.kophe.leskladlib.datasource.firestore.FirestoreCommonEntry
 import com.kophe.leskladlib.datasource.firestore.FirestoreDuty
 import com.kophe.leskladlib.datasource.firestore.FirestoreIssuance
+import com.kophe.leskladlib.datasource.firestore.FirestoreDeliveryNote
 import com.kophe.leskladlib.datasource.firestore.FirestoreItem
 import com.kophe.leskladlib.datasource.firestore.FirestoreLocation
 import com.kophe.leskladlib.datasource.firestore.FirestoreSubcategory
@@ -48,6 +49,7 @@ class DefaultAdminRepository(
 
     private val db by lazy { Firebase.firestore }
     private val firestoreIssuance by lazy { db.collection(builder.issuanceCollection) }
+    private val firestoreDeliveryNote by lazy { db.collection(builder.deliverynoteCollection) }
     private val firestoreCategory by lazy { db.collection(builder.categoriesCollection) }
     private val firestoreSubcategory by lazy { db.collection(builder.subcategoriesCollection) }
     private val firestoreItems by lazy { db.collection(builder.itemsCollection) }
@@ -93,6 +95,19 @@ class DefaultAdminRepository(
         TaskError(SimpleError(e.message))
     }
 
+    override suspend fun migrateDeliveryNoteToTimestamp(): TaskResult<Any, LSError> = try {
+        firestoreDeliveryNote.get().await().forEach { document ->
+            val item = document.toObject<FirestoreDeliveryNote>()
+            if (!item.date.isNullOrEmpty()) {
+                editDeliveryNote(item, document.id)
+            }
+        }
+        TaskSuccess()
+    } catch (e: Exception) {
+        log("migrateDeliveryNoteToTimestamp(...) failed due to: ${e.message}")
+        TaskError(SimpleError(e.message))
+    }
+
     private suspend inline fun <reified T> getEntries(ref: CollectionReference) =
         ref.get().await().mapNotNull { Pair(it.id, it.toObject<T>() ?: return@mapNotNull null) }
 
@@ -101,6 +116,7 @@ class DefaultAdminRepository(
     override suspend fun createBackupFile(): TaskResult<Any, LSError> {
         try {
             val issuances = getEntries<FirestoreIssuance>(firestoreIssuance)
+            val deliverynotes = getEntries<FirestoreDeliveryNote>(firestoreDeliveryNote)
             val locations = getEntries<FirestoreLocation>(firestoreLocation)
             val sublocations = getEntries<FirestoreCommonEntry>(firestoreSublocation)
             val categories = getEntries<FirestoreCategory>(firestoreCategory)
@@ -113,6 +129,7 @@ class DefaultAdminRepository(
             val unit = firestoreUnits?.let { getEntries<FirestoreCommonEntry>(it) }
             val backupObject = FirestoreBackupObject(
                 issuance = issuances,
+                deliverynote = deliverynotes,
                 locations = locations,
                 sublocations = sublocations,
                 categories = categories,
@@ -183,6 +200,7 @@ class DefaultAdminRepository(
             }
         }
         backupObject.issuance.forEach { batch.set(firestoreIssuance.document(it.first), it.second) }
+        backupObject.deliverynote.forEach { batch.set(firestoreDeliveryNote.document(it.first), it.second) }
         backupObject.items.forEach { batch.set(firestoreItems.document(it.first), it.second) }
         backupObject.ownershipTypes.forEach {
             batch.set(firestoreOwnership.document(it.first), it.second)
@@ -206,6 +224,14 @@ class DefaultAdminRepository(
         log("editItem(...): item=$item")
         val date = SimpleDateFormat(TIME_FORMAT).parse(item.date) ?: return
         firestoreIssuance.document(firestoreId).update(
+            hashMapOf("date_timestamp" to Timestamp(date)) as Map<String, Any>
+        ).await()
+    }
+
+    private suspend fun editDeliveryNote(item: FirestoreDeliveryNote, firestoreId: String) {
+        log("editItem(...): item=$item")
+        val date = SimpleDateFormat(TIME_FORMAT).parse(item.date) ?: return
+        firestoreDeliveryNote.document(firestoreId).update(
             hashMapOf("date_timestamp" to Timestamp(date)) as Map<String, Any>
         ).await()
     }

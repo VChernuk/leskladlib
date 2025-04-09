@@ -99,6 +99,20 @@ internal data class FirestoreIssuance(
     val user_email: String? = null
 )
 
+internal data class FirestoreDeliveryNote(
+    val from: String? = null,
+    val to: String? = null,
+    val date: String? = null,
+    val date_timestamp: com.google.firebase.Timestamp? = null,
+    val deliverynote_items: List<FirestoreCommonInfoItem>? = null,
+    val to_location_id: String? = null,
+    val notes: String? = null,
+    val to_sublocation_id: String? = null,
+    val responsible_unit_id: String? = null,
+    val receiver_call_sign: String? = null,
+    val user_email: String? = null
+)
+
 internal data class FirestoreDuty(
     val user: String? = null,
     val sublocation_name: String? = null,
@@ -117,6 +131,7 @@ internal data class FirestoreDutyItem(
 
 internal data class FirestoreBackupObject(
     val issuance: List<Pair<String, FirestoreIssuance>>,
+    val deliverynote: List<Pair<String, FirestoreDeliveryNote>>,
     val locations: List<Pair<String, FirestoreLocation>>,
     val sublocations: List<Pair<String, FirestoreCommonEntry>>,
     val categories: List<Pair<String, FirestoreCategory>>,

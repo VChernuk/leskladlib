@@ -8,6 +8,7 @@ data class RepositoryBuilder(
     val itemsCollection: String,
     val sublocations: String,
     val issuanceCollection: String,
+    val deliverynoteCollection: String,
     val dutyCollection: String,
     val usersCollection: String,
     val adminsCollection: String,

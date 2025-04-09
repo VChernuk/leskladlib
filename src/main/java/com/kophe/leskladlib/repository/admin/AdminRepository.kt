@@ -9,6 +9,8 @@ interface AdminRepository {
 
     suspend fun migrateIssuanceToTimestamp(): TaskResult<Any, LSError>
 
+    suspend fun migrateDeliveryNoteToTimestamp(): TaskResult<Any, LSError>
+
     suspend fun createBackupFile(): TaskResult<Any, LSError>
 
     suspend fun getBackupsList(): TaskResult<List<String>, LSError>

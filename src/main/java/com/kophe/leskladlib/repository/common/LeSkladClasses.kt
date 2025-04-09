@@ -77,6 +77,27 @@ data class Issuance(
 
 @Keep
 @Parcelize
+data class DeliveryNote(
+    val from: String,
+    val to: String,
+    val date: String,
+    val items: List<CommonItem>,
+    val notes: String,
+    val responsibleUnit: ResponsibleUnit?,
+    val receiverCallSign: String?
+) : Parcelable, Comparable<DeliveryNote> {
+
+    override fun compareTo(other: DeliveryNote): Int {
+        val format = SimpleDateFormat(TIME_FORMAT)
+        val thisDate = format.parse(date) ?: return date.compareTo(other.date)
+        val otherDate = format.parse(other.date) ?: return date.compareTo(other.date)
+        return thisDate.compareTo(otherDate)
+    }
+
+}
+
+@Keep
+@Parcelize
 data class CommonItem(val title: String?, val firestoreId: String?) : Parcelable {
 
     internal constructor(firestoreCommonInfoItem: FirestoreCommonInfoItem) : this(

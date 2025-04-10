@@ -56,6 +56,8 @@ class DefaultDeliveryNoteRepository(
                         val item = document.toObject<FirestoreDeliveryNote>()
                         if (item.from.isNullOrEmpty() || item.to.isNullOrEmpty() || item.date.isNullOrEmpty()) return@mapNotNull null
                         DeliveryNote(
+                            deliverynotenumber = item.delivery_note_number,
+                            deliverynotedate = item.delivery_note_date,
                             from = item.from,
                             to = "${item.to} ${findSublocation(item.to_sublocation_id)?.title ?: ""}",
                             date = item.date_timestamp?.seconds?.times(1000)
@@ -87,6 +89,8 @@ class DefaultDeliveryNoteRepository(
                     val item = document.toObject<FirestoreDeliveryNote>()
                     if (item.from.isNullOrEmpty() || item.to.isNullOrEmpty() || item.date.isNullOrEmpty()) return@mapNotNull null
                     val deliverynote = DeliveryNote(
+                        deliverynotenumber = item.delivery_note_number,
+                        deliverynotedate = item.delivery_note_date,
                         from = item.from,
                         to = "${item.to} ${findSublocation(item.to_sublocation_id)?.title ?: ""}",
                         date = item.date_timestamp?.seconds?.times(1000)
@@ -150,6 +154,9 @@ class DefaultDeliveryNoteRepository(
             )
             writeBatch.set(
                 firestoreDeliveryNote.document(key), FirestoreDeliveryNote(
+
+                    delivery_note_number = deliverynoteInfoContainer.deliverynotenumber,
+                    delivery_note_date = deliverynoteInfoContainer.deliverynotedate,
                     from = deliverynoteInfoContainer.from,
                     to = deliverynoteInfoContainer.location.title,
                     date = date,

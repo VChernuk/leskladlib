@@ -23,6 +23,8 @@ interface DeliveryNoteRepository {
 }
 
 data class DeliveryNoteInfoContainer(
+    val deliverynotenumber: String?,
+    val deliverynotedate: String?,
     val from: String,
     val receiver: String,
     val location: Location,

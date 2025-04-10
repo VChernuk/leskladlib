@@ -78,6 +78,8 @@ data class Issuance(
 @Keep
 @Parcelize
 data class DeliveryNote(
+    val deliverynotenumber: String?,
+    val deliverynotedate: String?,
     val from: String,
     val to: String,
     val date: String,

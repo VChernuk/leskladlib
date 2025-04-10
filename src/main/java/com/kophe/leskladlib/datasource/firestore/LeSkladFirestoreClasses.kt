@@ -100,6 +100,8 @@ internal data class FirestoreIssuance(
 )
 
 internal data class FirestoreDeliveryNote(
+    val delivery_note_number: String? = null,
+    val delivery_note_date: String? = null,
     val from: String? = null,
     val to: String? = null,
     val date: String? = null,

@@ -24,7 +24,8 @@ data class Filter(
     var category: Category? = null,
     var subcategory: Subcategory? = null,
     var ownershipType: OwnershipType? = null,
-    var responsibleUnit: ResponsibleUnit? = null
+    var responsibleUnit: ResponsibleUnit? = null,
+    var deliveryNote: DeliveryNote? = null
 ) : Parcelable {
     val filterDescription: String
         get() {
@@ -78,8 +79,10 @@ data class Issuance(
 @Keep
 @Parcelize
 data class DeliveryNote(
-    val deliverynotenumber: String?,
-    val deliverynotedate: String?,
+    var id: String?,
+    val deliveryNoteNumber: String?,
+    val deliveryNoteDate: String?,
+    val deliveryNotePIB: String?,
     val from: String,
     val to: String,
     val date: String,
@@ -152,6 +155,7 @@ data class Item(
     var createdDate: String?,
     var history: List<CommonItem> = emptyList(),
     var ownershipType: OwnershipType?,
+    var deliveryNote: DeliveryNote?,
     var images: MutableList<ItemImage>?,
     var sublocation: Sublocation?,
     var responsibleUnit: ResponsibleUnit?,
@@ -170,6 +174,7 @@ data class Item(
         firestoreId = null,
         createdDate = null,
         ownershipType = null,
+        deliveryNote = null,
         images = mutableListOf(),
         sublocation = null,
         responsibleUnit = null,
@@ -188,6 +193,7 @@ data class Item(
         id = null,
         barcode = null,
         ownershipType = null,
+        deliveryNote = null,
         images = mutableListOf(),
         sublocation = null,
         responsibleUnit = null,
@@ -202,6 +208,7 @@ data class Item(
         sublocation: Sublocation?,
         category: Category?,
         ownershipType: OwnershipType?,
+        deliveryNote: DeliveryNote?,
         firestoreId: String?,
         responsibleUnit: ResponsibleUnit?,
         quantity: ItemQuantity?,
@@ -224,6 +231,9 @@ data class Item(
             )
         } ?: emptyList(),
         ownershipType = ownershipType,
+
+        deliveryNote = deliveryNote,
+
         images = firestoreItem.item_images?.mapNotNull {
             ItemImage(
                 it.path ?: return@mapNotNull null, ""

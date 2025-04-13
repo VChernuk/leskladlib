@@ -40,11 +40,14 @@ import com.kophe.leskladlib.repository.common.ItemSetOptions
 import com.kophe.leskladlib.repository.common.LSError
 import com.kophe.leskladlib.repository.common.LSError.SimpleError
 import com.kophe.leskladlib.repository.common.RepositoryBuilder
+import com.kophe.leskladlib.repository.common.DeliveryNote
 import com.kophe.leskladlib.repository.common.TaskResult
 import com.kophe.leskladlib.repository.common.TaskResult.TaskError
 import com.kophe.leskladlib.repository.common.TaskResult.TaskSuccess
+import com.kophe.leskladlib.repository.deliverynote.DefaultDeliveryNoteRepository
 import com.kophe.leskladlib.repository.locations.LocationsRepository
 import com.kophe.leskladlib.repository.ownership.OwnershipRepository
+import com.kophe.leskladlib.repository.deliverynote.DeliveryNoteRepository
 import com.kophe.leskladlib.repository.units.UnitsRepository
 import com.kophe.leskladlib.validated
 import kotlinx.coroutines.tasks.await
@@ -58,7 +61,8 @@ class DefaultItemsRepository(
     private val locationsRepository: LocationsRepository,
     private val categoriesRepository: CategoriesRepository,
     private val ownershipRepository: OwnershipRepository,
-    private val unitsRepository: UnitsRepository?
+    private val unitsRepository: UnitsRepository?,
+    private val deliveryNoteRepository: DeliveryNoteRepository?
 ) : ItemsRepository, BaseRepository(loggingUtil) {
 
     private val db by lazy { Firebase.firestore }
@@ -71,6 +75,7 @@ class DefaultItemsRepository(
         categoriesRepository.precacheValues()
         ownershipRepository.precacheValues()
         unitsRepository?.precacheValues()
+        deliveryNoteRepository?.precacheValues()
         if (precacheItems) allItems()
     }
 
@@ -177,6 +182,7 @@ class DefaultItemsRepository(
             sublocation = findSublocation(item),
             firestoreId = documentId,
             ownershipType = findOwnershipType(item),
+            deliveryNote = findDeliveryNote(item),
             responsibleUnit = findResponsibleUnit(item),
             quantity = item.quantity?.let {
                 ItemQuantity(
@@ -213,6 +219,9 @@ class DefaultItemsRepository(
 
     private suspend fun findOwnershipType(item: FirestoreItem) =
         item.ownership_type_id?.let { ownershipRepository.getOwnershipType(it) }
+
+    private suspend fun findDeliveryNote(item: FirestoreItem) =
+        item.delivery_note_id?.let { deliveryNoteRepository?.getDeliveryNotebyID(item.delivery_note_id) }
 
     private suspend fun findResponsibleUnit(item: FirestoreItem) =
         item.responsible_unit_id?.let { unitsRepository?.getUnit(it) }
@@ -300,6 +309,7 @@ class DefaultItemsRepository(
                 sublocation = item.sublocation,
                 firestoreId = document.id,
                 ownershipType = item.ownershipType,
+                deliveryNote = item.deliveryNote,
                 responsibleUnit = item.responsibleUnit,
                 quantity = item.quantity,
                 setOptions = item.setOptions

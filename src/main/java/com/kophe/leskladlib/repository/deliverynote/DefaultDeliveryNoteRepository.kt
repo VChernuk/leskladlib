@@ -1,13 +1,19 @@
 package com.kophe.leskladlib.repository.deliverynote
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldPath.documentId
+import com.google.firebase.firestore.Source.CACHE
+import com.google.firebase.firestore.Source.DEFAULT
 import com.google.firebase.firestore.WriteBatch
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.firestore.ktx.toObject
 import com.google.firebase.ktx.Firebase
+import com.kophe.leskladlib.connectivity.ConnectionStateMonitor
+import com.kophe.leskladlib.datasource.firestore.FirestoreCommonEntry
 import com.kophe.leskladlib.datasource.firestore.FirestoreCommonInfoItem
 import com.kophe.leskladlib.datasource.firestore.FirestoreDeliveryNote
+import com.kophe.leskladlib.datasource.firestore.FirestoreLocation
 import com.kophe.leskladlib.logging.LoggingUtil
 import com.kophe.leskladlib.repository.common.BaseRepository
 import com.kophe.leskladlib.repository.common.CommonItem
@@ -17,6 +23,7 @@ import com.kophe.leskladlib.repository.common.LSError
 import com.kophe.leskladlib.repository.common.LSError.SimpleError
 import com.kophe.leskladlib.repository.common.Location
 import com.kophe.leskladlib.repository.common.RepositoryBuilder
+import com.kophe.leskladlib.repository.common.Sublocation
 import com.kophe.leskladlib.repository.common.TaskResult
 import com.kophe.leskladlib.repository.common.TaskResult.TaskError
 import com.kophe.leskladlib.repository.common.TaskResult.TaskSuccess
@@ -36,7 +43,8 @@ class DefaultDeliveryNoteRepository(
     private val locationsRepository: LocationsRepository,
     internal val itemsRepository: ItemsRepository,
     private val unitsRepository: UnitsRepository?,
-    private val userProfileRepository: UserProfileRepository
+    private val userProfileRepository: UserProfileRepository,
+    private val connection: ConnectionStateMonitor
 ) : DeliveryNoteRepository, BaseRepository(loggingUtil) {
 
     private val db by lazy { Firebase.firestore }
@@ -44,6 +52,74 @@ class DefaultDeliveryNoteRepository(
     internal val itemsCollection by lazy { db.collection(builder.itemsCollection) }
     private val localCachedDeliveryNote = mutableSetOf<DeliveryNote>()
 
+    override suspend fun precacheValues() {
+        if (localCachedDeliveryNote.isEmpty()) allDeliveryNotes(true)
+    }
+
+    override suspend fun allDeliveryNotes(forceReload: Boolean): TaskResult<List<DeliveryNote>, LSError> =
+        try {
+            log("allallDeliveryNotes(...) forceReload: $forceReload")
+            if (!forceReload && localCachedDeliveryNote.isNotEmpty()) {
+                TaskSuccess(localCachedDeliveryNote.sortedBy { it.deliveryNoteNumber }.toList())
+            } else {
+                localCachedDeliveryNote.clear()
+                TaskSuccess(firestoreDeliveryNote.get(if (connection.available() != true) CACHE else DEFAULT)
+                    .await().mapNotNull { result ->
+                        log("${result.id} => ${result.data}")
+                        val item = result.toObject<FirestoreDeliveryNote>()
+                        log("deliverynote: $item")
+                        val location =
+                            parseFirestoreDeliveryNote(item, result.id) ?: return@mapNotNull null
+                        localCachedDeliveryNote.add(location)
+                        location
+                    })
+            }
+        } catch (e: Exception) {
+            log("allLocations(...) failed due to: ${e.message}")
+            TaskError(SimpleError("${e.message}"))
+        }
+    private suspend fun parseFirestoreDeliveryNote(item: FirestoreDeliveryNote, id: String): DeliveryNote? {
+        val deliveryNote = item.delivery_note_number?.let {
+            DeliveryNote(
+                id = item.delivery_note_number,
+                deliveryNoteNumber = item.delivery_note_number,
+                deliveryNoteDate = item.delivery_note_date,
+                deliveryNotePIB = item.delivery_note_PIB,
+                from = item.from ?: "",
+                to = "${item.to} ${findSublocation(item.to_sublocation_id)?.title ?: ""}",
+                date = item.date_timestamp?.seconds?.times(1000)
+                    ?.timestampToFormattedDate24h() ?: item.date ?: "",
+                items = deliverynoteItems(item),
+                notes = item.notes ?: "",
+                responsibleUnit = unitsRepository?.getUnit(item.responsible_unit_id),
+                receiverCallSign = item.receiver_call_sign
+            )
+        } ?: return null
+        localCachedDeliveryNote.add(deliveryNote)
+        return deliveryNote
+    }
+
+    override suspend fun getDeliveryNotebyID(id: String): DeliveryNote? =
+        localCachedDeliveryNote.find { it.id == id } ?: firestoreDeliveryNote.whereEqualTo(
+            FieldPath.documentId(), id
+        ).limit(1).get(if (connection.available() != true) CACHE else DEFAULT).await().firstOrNull()
+            ?.let { result ->
+                val item = result.toObject<FirestoreDeliveryNote>()
+                val deliveryNote = parseFirestoreDeliveryNote(item, result.id) ?: return@let null
+                localCachedDeliveryNote.add(deliveryNote)
+                return@let deliveryNote
+            }
+
+    override suspend fun getDeliveryNotebyNumber(id: String): DeliveryNote? =
+        localCachedDeliveryNote.find { it.id == id } ?: firestoreDeliveryNote.whereEqualTo(
+            FieldPath.documentId(), id
+        ).limit(1).get(if (connection.available() != true) CACHE else DEFAULT).await().firstOrNull()
+            ?.let { result ->
+                val item = result.toObject<FirestoreDeliveryNote>()
+                val deliveryNote = parseFirestoreDeliveryNote(item, result.id) ?: return@let null
+                localCachedDeliveryNote.add(deliveryNote)
+                return@let deliveryNote
+            }
 
     //TODO: move to Delivery Note constructor
     override suspend fun findDeliveryNoteById(id: String?): TaskResult<DeliveryNote, LSError> {
@@ -56,14 +132,16 @@ class DefaultDeliveryNoteRepository(
                         val item = document.toObject<FirestoreDeliveryNote>()
                         if (item.from.isNullOrEmpty() || item.to.isNullOrEmpty() || item.date.isNullOrEmpty()) return@mapNotNull null
                         DeliveryNote(
-                            deliverynotenumber = item.delivery_note_number,
-                            deliverynotedate = item.delivery_note_date,
+                            id = item.delivery_note_number,
+                            deliveryNoteNumber = item.delivery_note_number,
+                            deliveryNoteDate = item.delivery_note_date,
+                            deliveryNotePIB = item.delivery_note_PIB,
                             from = item.from,
                             to = "${item.to} ${findSublocation(item.to_sublocation_id)?.title ?: ""}",
                             date = item.date_timestamp?.seconds?.times(1000)
                                 ?.timestampToFormattedDate24h() ?: item.date,
-                            deliverynoteItems(item),
-                            item.notes ?: "",
+                            items = deliverynoteItems(item),
+                            notes = item.notes ?: "",
                             responsibleUnit = unitsRepository?.getUnit(item.responsible_unit_id),
                             receiverCallSign = item.receiver_call_sign
                         )
@@ -89,14 +167,16 @@ class DefaultDeliveryNoteRepository(
                     val item = document.toObject<FirestoreDeliveryNote>()
                     if (item.from.isNullOrEmpty() || item.to.isNullOrEmpty() || item.date.isNullOrEmpty()) return@mapNotNull null
                     val deliverynote = DeliveryNote(
-                        deliverynotenumber = item.delivery_note_number,
-                        deliverynotedate = item.delivery_note_date,
+                        id = item.delivery_note_number,
+                        deliveryNoteNumber = item.delivery_note_number,
+                        deliveryNoteDate = item.delivery_note_date,
+                        deliveryNotePIB = item.delivery_note_PIB,
                         from = item.from,
                         to = "${item.to} ${findSublocation(item.to_sublocation_id)?.title ?: ""}",
                         date = item.date_timestamp?.seconds?.times(1000)
                             ?.timestampToFormattedDate24h() ?: item.date,
-                        deliverynoteItems(item),
-                        item.notes ?: "",
+                        items = deliverynoteItems(item),
+                        notes = item.notes ?: "",
                         responsibleUnit = unitsRepository?.getUnit(item.responsible_unit_id),
                         receiverCallSign = item.receiver_call_sign
                     )
@@ -155,8 +235,9 @@ class DefaultDeliveryNoteRepository(
             writeBatch.set(
                 firestoreDeliveryNote.document(key), FirestoreDeliveryNote(
 
-                    delivery_note_number = deliverynoteInfoContainer.deliverynotenumber,
-                    delivery_note_date = deliverynoteInfoContainer.deliverynotedate,
+                    delivery_note_number = deliverynoteInfoContainer.deliveryNoteNumber,
+                    delivery_note_date = deliverynoteInfoContainer.deliveryNoteDate,
+                    delivery_note_PIB = deliverynoteInfoContainer.deliveryNotePIB,
                     from = deliverynoteInfoContainer.from,
                     to = deliverynoteInfoContainer.location.title,
                     date = date,

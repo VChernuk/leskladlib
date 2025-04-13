@@ -26,6 +26,7 @@ internal data class FirestoreItem(
     val date_modified: com.google.firebase.Timestamp? = null,
     val history: List<FirestoreCommonInfoItem>? = null,
     val ownership_type_id: String? = null,
+    val delivery_note_id: String? = null,
     val item_images: List<FirestoreItemImage>? = null,
     val responsible_unit_id: String? = null,
     val serial_number: String? = null,
@@ -44,6 +45,7 @@ internal data class FirestoreItem(
         history = emptyList(),//TODO: review this
         item_images = item.images?.map { FirestoreItemImage(it.url, it.date) },
         ownership_type_id = item.ownershipType?.id,
+        delivery_note_id = item.deliveryNote?.id,
         sublocation_id = item.sublocation?.id,
         responsible_unit_id = item.responsibleUnit?.id,
         serial_number = item.sn?.validated(),
@@ -102,6 +104,7 @@ internal data class FirestoreIssuance(
 internal data class FirestoreDeliveryNote(
     val delivery_note_number: String? = null,
     val delivery_note_date: String? = null,
+    val delivery_note_PIB: String? = null,
     val from: String? = null,
     val to: String? = null,
     val date: String? = null,

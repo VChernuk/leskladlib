@@ -8,89 +8,89 @@ import com.kophe.leskladlib.repository.common.ItemQuantity
 import com.kophe.leskladlib.searchItemByFirestoreId
 import com.kophe.leskladlib.searchParentQuantityItem
 import java.util.Date
-
-@Throws(IllegalArgumentException::class)
-internal suspend fun DefaultDeliveryNoteRepository.dealWithQuantityItems(
-    deliverynoteInfoContainer: DeliveryNoteInfoContainer,
-    quantityItems: List<Item>,
-    writeBatch: WriteBatch,
-    forceDivideQuantityItems: Boolean = false
-): List<FirestoreCommonInfoItem> {
-    log("dealWithQuantityItems deliverynoteInfoContainer: $deliverynoteInfoContainer quantityItems: $quantityItems forceDivideQuantityItems: $forceDivideQuantityItems")
-    val result = mutableListOf<FirestoreCommonInfoItem>()
-    quantityItems.forEach { item ->
-        val itemQuantity = item.quantity ?: return@forEach
-        val firestoreId = item.firestoreId ?: throw IllegalArgumentException("no firestore id")
-        val originalItem = itemsRepository.searchItemByFirestoreId(firestoreId)
-            ?: throw IllegalArgumentException("no original item")
-        if (originalItem.location == deliverynoteInfoContainer.location && originalItem.sublocation == deliverynoteInfoContainer.sublocation && originalItem.responsibleUnit == deliverynoteInfoContainer.responsibleUnit) {
-            log("dealWithQuantityItems ... tried to move $item to same location")
-            result.add(FirestoreCommonInfoItem(item.titleString(), item.firestoreId))
-            return@forEach
-        }
-        log("dealWithQuantityItems ... originalItem: $originalItem")
-        if (originalItem.quantity?.quantity == itemQuantity.quantity) {
-            log("dealWithQuantityItems ... originalItem.quantity?.quantity == itemQuantity.quantity")
-            itemsRepository.searchParentQuantityItem(
-                itemQuantity.parentId ?: return@forEach,
-                deliverynoteInfoContainer.location,
-                sublocation = deliverynoteInfoContainer.sublocation,
-                responsibleUnit = deliverynoteInfoContainer.responsibleUnit
-            )?.let { parentItem ->
-                val parentId = parentItem.firestoreId ?: return@forEach
-                val parentQuantity = parentItem.quantity ?: return@forEach
-                if (parentItem == item) return@forEach
-                // 2. all quantity, parent receiver exists
-                log("dealWithQuantityItems ... all quantity, parent receiver exists, parentItem: $parentItem")
-                result.add(
-                    dealWithQuantityItemAllQuantityWithParent(
-                        item, writeBatch, parentId, parentQuantity
-                    )
-                )
-            } ?: run {
-                // 1. all quantity, no available parent receiver - done
-                log("dealWithQuantityItems ... all quantity, no parent receiver")
-                result.add(
-                    dealWithQuantityItemAllQuantityNoParent(
-                        deliverynoteInfoContainer, item, firestoreId, writeBatch
-                    )
-                )
-            }
-        } else if (originalItem.quantity!!.quantity > itemQuantity.quantity) {
-            if (forceDivideQuantityItems) {
-                result.add(forceDivideItem(writeBatch, item, originalItem, deliverynoteInfoContainer))
-                return@forEach
-            }
-            itemsRepository.searchParentQuantityItem(
-                itemQuantity.parentId!!,
-                deliverynoteInfoContainer.location,
-                sublocation = deliverynoteInfoContainer.sublocation,
-                responsibleUnit = deliverynoteInfoContainer.responsibleUnit
-            )?.let { parentItem ->
-                //4. some quantity, parent receiver exists
-                log("dealWithQuantityItems ... some quantity, parent receiver exists, parentItem: $parentItem")
-                result.add(
-                    dealWithQuantityItemSomeQuantityWithParent(
-                        item, parentItem, originalItem, writeBatch
-                    )
-                )
-                return@forEach
-            } ?: run {
-                //3. some quantity, no parent receiver - done
-                log("dealWithQuantityItems ... some quantity, no parent receiver")
-                result.add(
-                    dealWithQuantityItemSomeQuantityNoParent(
-                        item, originalItem, deliverynoteInfoContainer, writeBatch
-                    )
-                )
-            }
-        } else {
-            //MORE QUANTITY THAN AVAILABLE!!
-            throw IllegalArgumentException("not enought items")
-        }
-    }
-    return result
-}
+//
+//@Throws(IllegalArgumentException::class)
+//internal suspend fun DefaultDeliveryNoteRepository.dealWithQuantityItems(
+//    deliverynoteInfoContainer: DeliveryNoteInfoContainer,
+//    quantityItems: List<Item>,
+//    writeBatch: WriteBatch,
+//    forceDivideQuantityItems: Boolean = false
+//): List<FirestoreCommonInfoItem> {
+//    log("dealWithQuantityItems deliverynoteInfoContainer: $deliverynoteInfoContainer quantityItems: $quantityItems forceDivideQuantityItems: $forceDivideQuantityItems")
+//    val result = mutableListOf<FirestoreCommonInfoItem>()
+//    quantityItems.forEach { item ->
+//        val itemQuantity = item.quantity ?: return@forEach
+//        val firestoreId = item.firestoreId ?: throw IllegalArgumentException("no firestore id")
+//        val originalItem = itemsRepository.searchItemByFirestoreId(firestoreId)
+//            ?: throw IllegalArgumentException("no original item")
+//        if (originalItem.location == deliverynoteInfoContainer.location && originalItem.sublocation == deliverynoteInfoContainer.sublocation && originalItem.responsibleUnit == deliverynoteInfoContainer.responsibleUnit) {
+//            log("dealWithQuantityItems ... tried to move $item to same location")
+//            result.add(FirestoreCommonInfoItem(item.titleString(), item.firestoreId))
+//            return@forEach
+//        }
+//        log("dealWithQuantityItems ... originalItem: $originalItem")
+//        if (originalItem.quantity?.quantity == itemQuantity.quantity) {
+//            log("dealWithQuantityItems ... originalItem.quantity?.quantity == itemQuantity.quantity")
+//            itemsRepository.searchParentQuantityItem(
+//                itemQuantity.parentId ?: return@forEach,
+//                deliverynoteInfoContainer.location,
+//                sublocation = deliverynoteInfoContainer.sublocation,
+//                responsibleUnit = deliverynoteInfoContainer.responsibleUnit
+//            )?.let { parentItem ->
+//                val parentId = parentItem.firestoreId ?: return@forEach
+//                val parentQuantity = parentItem.quantity ?: return@forEach
+//                if (parentItem == item) return@forEach
+//                // 2. all quantity, parent receiver exists
+//                log("dealWithQuantityItems ... all quantity, parent receiver exists, parentItem: $parentItem")
+//                result.add(
+//                    dealWithQuantityItemAllQuantityWithParent(
+//                        item, writeBatch, parentId, parentQuantity
+//                    )
+//                )
+//            } ?: run {
+//                // 1. all quantity, no available parent receiver - done
+//                log("dealWithQuantityItems ... all quantity, no parent receiver")
+//                result.add(
+//                    dealWithQuantityItemAllQuantityNoParent(
+//                        deliverynoteInfoContainer, item, firestoreId, writeBatch
+//                    )
+//                )
+//            }
+//        } else if (originalItem.quantity!!.quantity > itemQuantity.quantity) {
+//            if (forceDivideQuantityItems) {
+//                result.add(forceDivideItem(writeBatch, item, originalItem, deliverynoteInfoContainer))
+//                return@forEach
+//            }
+//            itemsRepository.searchParentQuantityItem(
+//                itemQuantity.parentId!!,
+//                deliverynoteInfoContainer.location,
+//                sublocation = deliverynoteInfoContainer.sublocation,
+//                responsibleUnit = deliverynoteInfoContainer.responsibleUnit
+//            )?.let { parentItem ->
+//                //4. some quantity, parent receiver exists
+//                log("dealWithQuantityItems ... some quantity, parent receiver exists, parentItem: $parentItem")
+//                result.add(
+//                    dealWithQuantityItemSomeQuantityWithParent(
+//                        item, parentItem, originalItem, writeBatch
+//                    )
+//                )
+//                return@forEach
+//            } ?: run {
+//                //3. some quantity, no parent receiver - done
+//                log("dealWithQuantityItems ... some quantity, no parent receiver")
+//                result.add(
+//                    dealWithQuantityItemSomeQuantityNoParent(
+//                        item, originalItem, deliverynoteInfoContainer, writeBatch
+//                    )
+//                )
+//            }
+//        } else {
+//            //MORE QUANTITY THAN AVAILABLE!!
+//            throw IllegalArgumentException("not enought items")
+//        }
+//    }
+//    return result
+//}
 
 internal fun DefaultDeliveryNoteRepository.forceDivideItem(
     writeBatch: WriteBatch,

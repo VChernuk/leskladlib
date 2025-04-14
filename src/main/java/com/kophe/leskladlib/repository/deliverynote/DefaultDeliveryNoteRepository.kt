@@ -11,6 +11,7 @@ import com.google.firebase.firestore.ktx.toObject
 import com.google.firebase.ktx.Firebase
 import com.kophe.leskladlib.connectivity.ConnectionStateMonitor
 import com.kophe.leskladlib.datasource.firestore.FirestoreCommonEntry
+
 import com.kophe.leskladlib.datasource.firestore.FirestoreCommonInfoItem
 import com.kophe.leskladlib.datasource.firestore.FirestoreDeliveryNote
 import com.kophe.leskladlib.datasource.firestore.FirestoreLocation
@@ -41,7 +42,7 @@ class DefaultDeliveryNoteRepository(
     loggingUtil: LoggingUtil,
     builder: RepositoryBuilder,
     private val locationsRepository: LocationsRepository,
-    internal val itemsRepository: ItemsRepository,
+    //internal val itemsRepository: ItemsRepository,
     private val unitsRepository: UnitsRepository?,
     private val userProfileRepository: UserProfileRepository,
     private val connection: ConnectionStateMonitor
@@ -207,27 +208,30 @@ class DefaultDeliveryNoteRepository(
         val dateTimestamp = Timestamp(Date())
         val writeBatch = db.batch()
         return try {
-            val quantityResult = dealWithQuantityItems(
-                deliverynoteInfoContainer = deliverynoteInfoContainer,
-                quantityItems = items.filter { it.quantity != null },
-                writeBatch = writeBatch,
-                forceDivideQuantityItems
-            )
-            items.filter { it.quantity == null }.forEach { item ->
-                item.location = Location(
-                    deliverynoteInfoContainer.location.title,
-                    deliverynoteInfoContainer.location.id,
-                    emptyList()
-                )
-                item.sublocation = deliverynoteInfoContainer.sublocation
-                moveItem(writeBatch, item.firestoreId!!, deliverynoteInfoContainer)
-            }
-            val commonItems = quantityResult.toMutableList()
+
+//            val quantityResult = dealWithQuantityItems(
+//                deliverynoteInfoContainer = deliverynoteInfoContainer,
+//                quantityItems = items.filter { it.quantity != null },
+//                writeBatch = writeBatch,
+//                forceDivideQuantityItems
+//            )
+//            items.filter { it.quantity == null }.forEach { item ->
+//                item.location = Location(
+//                    deliverynoteInfoContainer.location.title,
+//                    deliverynoteInfoContainer.location.id,
+//                    emptyList()
+//                )
+//                item.sublocation = deliverynoteInfoContainer.sublocation
+//                moveItem(writeBatch, item.firestoreId!!, deliverynoteInfoContainer)
+//            }
+            val commonItems: MutableList<FirestoreCommonInfoItem> = mutableListOf<FirestoreCommonInfoItem>()
+            //val commonItems = List<FirestoreCommonInfoItem>//quantityResult.toMutableList()
             commonItems.addAll(items.filter { it.quantity == null }.map {
                 FirestoreCommonInfoItem(
                     title = it.titleString(), firestore_id = it.firestoreId
                 )
             })
+
             val key = key(
                 date = Date(),
                 "${deliverynoteInfoContainer.from} ${deliverynoteInfoContainer.location.title}"
@@ -252,14 +256,6 @@ class DefaultDeliveryNoteRepository(
                 )
             )
             writeBatch.commit().await()
-            itemsRepository.setupItemsHistory(
-                deliverynoteInfoContainer.from,
-                deliverynoteInfoContainer.location.title,
-                date,
-                items,
-                key,
-                deliverynoteInfoContainer.receiver
-            )
             TaskSuccess<Any, LSError>()
         } catch (e: Exception) {
             log("createDeliveryNote(...) failed due to: ${e.message}")

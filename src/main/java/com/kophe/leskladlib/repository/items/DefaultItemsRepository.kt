@@ -51,6 +51,7 @@ import com.kophe.leskladlib.repository.deliverynote.DeliveryNoteRepository
 import com.kophe.leskladlib.repository.units.UnitsRepository
 import com.kophe.leskladlib.validated
 import kotlinx.coroutines.tasks.await
+//import java.security.Provider
 import java.util.Date
 
 //TODO: validate quantity fields
@@ -63,6 +64,7 @@ class DefaultItemsRepository(
     private val ownershipRepository: OwnershipRepository,
     private val unitsRepository: UnitsRepository?,
     private val deliveryNoteRepository: DeliveryNoteRepository?
+//    private val deliveryNoteRepository: Provider<DeliveryNoteRepository>
 ) : ItemsRepository, BaseRepository(loggingUtil) {
 
     private val db by lazy { Firebase.firestore }

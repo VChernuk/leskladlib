@@ -76,10 +76,11 @@ class DefaultDeliveryNoteRepository(
                     })
             }
         } catch (e: Exception) {
-            log("allLocations(...) failed due to: ${e.message}")
+            log("allDeliveryNotes(...) failed due to: ${e.message}")
             TaskError(SimpleError("${e.message}"))
         }
     private suspend fun parseFirestoreDeliveryNote(item: FirestoreDeliveryNote, id: String): DeliveryNote? {
+        log("parseFirestoreDeliveryNote(...) forceReload: $id")
         val deliveryNote = item.delivery_note_number?.let {
             DeliveryNote(
                 id = item.delivery_note_number,
